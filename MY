@@ -1,0 +1,137 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace Isgn.Tcl.Controls
+{
+    public partial class CurrencyTextBox : MaskedTextBox
+    {
+        private List<Keys> keyList = new List<Keys>() { Keys.Right, Keys.Back, Keys.Delete, Keys.Left, Keys.Home };
+        private List<Keys> invalidKeyList = new List<Keys>() { Keys.OemBackslash, Keys.Oemtilde, Keys.OemSemicolon, Keys.OemQuotes, Keys.OemQuestion, Keys.Oemplus, Keys.Oemcomma, Keys.Divide };
+
+        public CurrencyTextBox()
+        {
+            InitializeComponent();
+        }
+
+        public CurrencyTextBox(IContainer container)
+            : base()
+        {
+            container.Add(this);
+
+            InitializeComponent();
+        }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            string keyValue = ((char)e.KeyValue).ToString();
+
+            if (keyList.Contains(e.KeyCode))
+            {
+                return;
+            }
+
+            if (invalidKeyList.Contains(e.KeyCode))
+            {
+                SuppressKeyPress(e);
+                return;
+            }
+
+            if (e.KeyCode == Keys.OemMinus && this.SelectionStart != 0)
+            {
+                SuppressKeyPress(e);
+            }
+            else if (!char.IsLetter((char)e.KeyValue))
+            {
+                if (this.Text.Contains(".") && this.TextLength >= 12 && this.SelectionLength == 0 && e.KeyCode != Keys.OemMinus && !this.Text.StartsWith("-"))
+                {
+                    SuppressKeyPress(e);
+                    return;
+                }
+                else if (((this.TextLength > 8 && this.SelectionStart != 0 && !this.Text.StartsWith("-")) || (this.Text.StartsWith("-") && this.TextLength > 9)) && !this.Text.Contains(".") && e.KeyValue != 190 && this.SelectionLength == 0)
+                {
+                    SuppressKeyPress(e);
+                }
+                else if (this.Text.Contains("."))
+                {
+                    string[] range = this.Text.Split('.');
+                    if (range[1].Length == 2 && this.SelectionLength == 0)
+                    {
+                        if ((range[1].Length == 2 && this.SelectionStart < this.TextLength && this.TextLength != 13)
+                            || this.SelectionStart > 10 && this.TextLength != 13
+                            || (this.TextLength < 13 && this.Text.StartsWith("-") && this.SelectionStart != this.TextLength))
+                        {
+                            if (this.SelectionStart == (this.TextLength - range[1].Length)) { this.SuppressKeyPress(e); }
+                        }
+                        else
+                        {
+                            SuppressKeyPress(e);
+                        }
+                    }
+                    else if (range[1].Length != 2 && e.KeyValue == 190)
+                    {
+                        SuppressKeyPress(e);
+                    }
+                }
+            }
+            else
+            {
+                SuppressKeyPress(e);
+            }
+        }
+
+        protected override void OnEnter(EventArgs e)
+        {
+            base.OnEnter(e);
+            if (this.Text.Contains(")"))
+            {
+                this.Text = this.Text.Replace("(", string.Empty).Replace(")", string.Empty);
+                this.Text = "-" + this.Text;
+            }
+
+            this.Text = this.Text.Replace(",", string.Empty).Replace("$", string.Empty);
+            this.Text = this.Text.Trim();
+        }
+
+        protected override void OnLeave(EventArgs e)
+        {
+            base.OnLeave(e);
+            double amount = 0.0d;
+
+            if (!this.Text.Contains(".") && !string.IsNullOrEmpty(this.Text))
+            {
+                if (this.TextLength > 9 && this.Text.StartsWith("-"))
+                {
+                    this.Text = this.Text.Substring(0, 10);
+                }
+                else if (this.TextLength > 9)
+                {
+                    this.Text = this.Text.Substring(0, 9);
+                }
+            }
+
+            this.Text = string.IsNullOrEmpty(this.Text.Trim()) == true ? "0" : this.Text;
+
+            if (Double.TryParse(this.Text, NumberStyles.Currency, null, out amount))
+            {
+                this.Text = amount.ToString("C2");
+            }
+
+            this.Text = this.Text.Trim();
+        }
+
+        private void SuppressKeyPress(KeyEventArgs e)
+        {
+            e.SuppressKeyPress = true;
+            e.Handled = true;
+        }
+    }
+}
+
